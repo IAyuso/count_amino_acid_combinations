@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Mar  1 16:29:46 2023
+Created on Thu Mar  2 13:52:17 2023
 
 @author: ivay
 """
@@ -42,12 +42,11 @@ class FastaFile:
                     continue
                 writer.writerow([name, sequence])
 
-
 class AASequenceAlignment:
 
-    def __init__(self, file_path):
+    def __init__(self, file_path, positions_dict):
         self.df_alignment = pd.read_csv(file_path, names=['AccNum', 'Seq'])
-        self.positions = {252: 'R178', 257: 'D180', 261: 'E183', 263: 'F185'}
+        self.positions = positions_dict
 
     def split_seq_to_chars(self):
         self.df_alignment_split = pd.concat([self.df_alignment['AccNum'],
@@ -64,22 +63,31 @@ class AASequenceAlignment:
         self.df_final = self.df_final[['AccNum', *self.positions.values(), 'solutions']]
 
     def plot_solutions(self):
-        # Create a pie chart using the 'solutions' column of df_final
+    # Create a pie chart using the 'solutions' column of df_final
         fig, ax = plt.subplots()
-        ax.pie(self.df_final['solutions'], labels=self.df_final['AccNum'], autopct='%1.1f%%')
-        ax.set_title('Solutions by accession number')
+        ax.pie(self.df_final['solutions'], labels=self.df_final.apply(lambda x: ''.join(x[1:len(self.positions)+1].values.astype(str)), axis=1), autopct='%1.1f%%')
+        ax.set_title('Solutions by configuration %')
 
-        # Show the plot
-        plt.show()
+    # Show the plot
+    plt.show()
 
     def save_output_to_excel(self, output_path):
         self.df_final.to_excel(output_path, index=False)
 
-
 if __name__ == "__main__":
+    # Take user input for positions dictionary
+    positions_dict = {}
+    print("Enter amino acid names and corresponding positions in the alignment:")
+    while True:
+        pos_name = input("Amino acid name (i.e. W178; press ENTER to quit): ")
+        if not pos_name:
+            break
+        pos_num = int(input("Position in the alignment: ")) - 1
+        positions_dict[pos_num] = pos_name
+
     fasta_file = FastaFile("input.fasta")
     fasta_file.write_csv("alignment.csv")
-    dna_alignment = AASequenceAlignment('alignment.csv')
+    dna_alignment = AASequenceAlignment('alignment.csv', positions_dict)
     dna_alignment.split_seq_to_chars()
     dna_alignment.rename_columns()
     dna_alignment.find_unique_sequences()
