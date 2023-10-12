@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar  2 13:52:17 2023
-
 @author: ivay
 """
 
 import pandas as pd
 import csv
-import matplotlib.pyplot as plt
 
 
 class FastaFile:
@@ -57,19 +52,35 @@ class AASequenceAlignment:
         self.df = self.df_alignment_split.rename(columns=self.positions)[['AccNum', *self.positions.values()]]
 
     def find_unique_sequences(self):
-        df_uniques = self.df.groupby(list(self.positions.values())).first().reset_index()
-        df_uniques2 = self.df.groupby(list(self.positions.values())).size().reset_index(name='solutions')
-        self.df_final = pd.merge(df_uniques, df_uniques2, on=list(self.positions.values()))
-        self.df_final = self.df_final[['AccNum', *self.positions.values(), 'solutions']]
+        df_uniques = self.df.groupby(list(self.positions.values()))['AccNum'].apply(list).reset_index()
+        df_uniques['solutions'] = df_uniques['AccNum'].apply(len)
+        self.df_final = df_uniques[['AccNum', *self.positions.values(), 'solutions']]
 
-    def plot_solutions(self):
-    # Create a pie chart using the 'solutions' column of df_final
-        fig, ax = plt.subplots()
-        ax.pie(self.df_final['solutions'], labels=self.df_final.apply(lambda x: ''.join(x[1:len(self.positions)+1].values.astype(str)), axis=1), autopct='%1.1f%%')
-        ax.set_title('Solutions by configuration %')
+    def get_instance_names(self):
+        instance_names = {}
+        for _, row in self.df_final.iterrows():
+            solutions = row['AccNum']
+            if solutions:
+                acc_num = solutions[0]  # Only consider the first instance in each solution
+                if acc_num not in instance_names:
+                    instance_names[acc_num] = row['AccNum']
+                    instance_names[acc_num + '_criteria'] = ''.join(row[1:-1].astype(str))  # Extract criteria
 
-    # Show the plot
-    plt.show()
+        return instance_names
+
+    def save_instance_names(self, output_txt):
+        instance_names = self.get_instance_names()
+
+        with open(output_txt, 'w') as f:
+            for acc_num, solutions in instance_names.items():
+                if '_criteria' in acc_num:
+                    f.write(f'Criteria: {solutions}\n\n')  # Write criteria section
+                else:
+                    f.write(f'AccNum: {acc_num}\n')
+                    f.write('Solutions:\n')  # New line for Solutions header
+                    for solution in solutions:
+                        f.write(f'{solution}\n')  # Write each solution on a new line
+                    f.write('\n')  # Add an extra new line for separation
 
     def save_output_to_excel(self, output_path):
         self.df_final.to_excel(output_path, index=False)
@@ -91,5 +102,5 @@ if __name__ == "__main__":
     dna_alignment.split_seq_to_chars()
     dna_alignment.rename_columns()
     dna_alignment.find_unique_sequences()
-    dna_alignment.plot_solutions()
     dna_alignment.save_output_to_excel('solutions.xlsx')
+    dna_alignment.save_instance_names('instance_names.txt')
