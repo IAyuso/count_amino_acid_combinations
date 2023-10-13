@@ -1,6 +1,3 @@
-@author: ivay
-"""
-
 import pandas as pd
 import csv
 
